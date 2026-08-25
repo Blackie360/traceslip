@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm"
+import { and, eq, ne, sql } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import { z } from "zod"
 
@@ -14,6 +14,7 @@ const requestSchema = z.object({
   filename: z.string().min(1).max(255),
   mimeType: z.enum(ALLOWED_UPLOAD_MIME_TYPES),
   byteSize: z.number().int().positive().max(MAX_UPLOAD_BYTES),
+  sourceFingerprint: z.string().regex(/^[a-f0-9]{64}$/),
 })
 
 export async function POST(request: Request) {
@@ -30,6 +31,23 @@ export async function POST(request: Request) {
       existing.receipt.status !== "draft" ||
       !canEditReceipt(existing.access, existing.receipt.createdById, session.user.id)
     )) return NextResponse.json({ error: "Resource not found" }, { status: 404 })
+
+    const [duplicate] = await db
+      .select({ id: receipts.id, archiveId: receipts.archiveId })
+      .from(receipts)
+      .where(and(
+        eq(receipts.organizationId, access.organizationId),
+        eq(receipts.sourceFingerprint, input.sourceFingerprint),
+        input.receiptId ? ne(receipts.id, input.receiptId) : undefined
+      ))
+      .limit(1)
+    if (duplicate) {
+      return NextResponse.json({
+        error: `This receipt already exists as ${duplicate.archiveId}. Upload rejected.`,
+        code: "DUPLICATE_RECEIPT",
+        existingReceipt: duplicate,
+      }, { status: 409 })
+    }
 
     const uploadToken = `${crypto.randomUUID()}${crypto.randomUUID()}`
     const uploadTokenHash = await sha256Hex(new TextEncoder().encode(uploadToken).buffer as ArrayBuffer)
