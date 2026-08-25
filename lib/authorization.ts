@@ -8,6 +8,7 @@ import { members, organizations, projectMembers, projects } from "@/db/schema"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import type { ProjectRole, WorkspaceRole } from "@/lib/receipt-types"
+import { isSessionDatabaseError } from "@/lib/transient-database-error"
 export { canCreateReceipt, canEditReceipt, canFinalizeReceipt, canManageProject, canVoidReceipt } from "@/lib/permissions"
 
 export class AuthorizationError extends Error {
@@ -18,7 +19,14 @@ export class AuthorizationError extends Error {
 }
 
 export async function getRequestSession() {
-  return auth.api.getSession({ headers: await headers() })
+  const requestHeaders = await headers()
+  try {
+    return await auth.api.getSession({ headers: requestHeaders })
+  } catch (error) {
+    if (!isSessionDatabaseError(error)) throw error
+    await new Promise((resolve) => setTimeout(resolve, 150))
+    return auth.api.getSession({ headers: requestHeaders })
+  }
 }
 
 export async function requireSession() {

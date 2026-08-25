@@ -28,6 +28,10 @@ export const auth = betterAuth({
   appName: "TraceSlip",
   baseURL: process.env.BETTER_AUTH_URL ?? appUrl,
   secret: process.env.BETTER_AUTH_SECRET ?? "development-only-change-this-traceslip-secret",
+  logger: {
+    level: "error",
+    log: (level, message) => console.error(`[Better Auth] ${level}: ${message}`),
+  },
   database: drizzleAdapter(db, { provider: "pg", schema: authSchema }),
   emailAndPassword: {
     enabled: true,

@@ -10,9 +10,9 @@ if (!connectionString) throw new Error("DATABASE_URL is required; TraceSlip has 
 
 export const queryClient = postgres(connectionString, {
   prepare: false,
-  max: process.env.NODE_ENV === "production" ? 5 : 10,
-  idle_timeout: 20,
-  connect_timeout: 10,
+  max: process.env.NODE_ENV === "production" ? 5 : 2,
+  idle_timeout: process.env.NODE_ENV === "production" ? 20 : 120,
+  connect_timeout: 20,
 })
 
 export const db = drizzle(queryClient, { schema })
