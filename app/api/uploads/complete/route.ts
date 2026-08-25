@@ -1,4 +1,4 @@
-import { and, eq, ne } from "drizzle-orm"
+import { and, eq, ne, sql } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import { z } from "zod"
 
@@ -29,19 +29,37 @@ export async function POST(request: Request) {
     }
 
     const fingerprint = await sha256Hex(bytes.buffer as ArrayBuffer)
-    const [duplicate] = await db
-      .select({ id: receipts.id, archiveId: receipts.archiveId })
-      .from(receipts)
-      .where(and(eq(receipts.organizationId, attachment.organizationId), eq(receipts.sourceFingerprint, fingerprint), ne(receipts.id, attachment.receiptId)))
-      .limit(1)
+    const result = await db.transaction(async (tx) => {
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`${attachment.organizationId}:${fingerprint}`}, 0))`)
+      const [duplicate] = await tx
+        .select({ id: receipts.id, archiveId: receipts.archiveId })
+        .from(receipts)
+        .where(and(eq(receipts.organizationId, attachment.organizationId), eq(receipts.sourceFingerprint, fingerprint), ne(receipts.id, attachment.receiptId)))
+        .limit(1)
 
-    await db.transaction(async (tx) => {
+      if (duplicate) {
+        await tx
+          .update(attachments)
+          .set({ status: "rejected", content: null, sha256: fingerprint, uploadTokenHash: null, uploadTokenExpiresAt: null })
+          .where(eq(attachments.id, attachment.id))
+        await tx.insert(auditEvents).values({
+          organizationId: attachment.organizationId,
+          actorUserId: session.user.id,
+          effectiveUserId: session.user.id,
+          action: "attachment.rejected_duplicate",
+          entityType: "receipt",
+          entityId: attachment.receiptId,
+          metadata: { attachmentId, duplicateReceiptId: duplicate.id, duplicateArchiveId: duplicate.archiveId },
+        })
+        return { duplicate }
+      }
+
       await tx.update(attachments).set({ status: "ready", sha256: fingerprint, uploadTokenHash: null, uploadTokenExpiresAt: null, completedAt: new Date() }).where(eq(attachments.id, attachment.id))
       await tx
         .update(receipts)
         .set({
           sourceFingerprint: fingerprint,
-          calculationWarnings: duplicate ? [`Possible duplicate of ${duplicate.archiveId}.`] : [],
+          calculationWarnings: [],
           updatedById: session.user.id,
           updatedAt: new Date(),
         })
@@ -53,10 +71,18 @@ export async function POST(request: Request) {
         action: "attachment.completed",
         entityType: "receipt",
         entityId: attachment.receiptId,
-        metadata: { attachmentId, duplicateReceiptId: duplicate?.id ?? null },
+        metadata: { attachmentId },
       })
+      return { duplicate: null }
     })
-    return NextResponse.json({ ok: true, receiptId: attachment.receiptId, duplicate: duplicate ?? null })
+    if (result.duplicate) {
+      return NextResponse.json({
+        error: `This receipt already exists as ${result.duplicate.archiveId}. Upload rejected.`,
+        code: "DUPLICATE_RECEIPT",
+        existingReceipt: result.duplicate,
+      }, { status: 409 })
+    }
+    return NextResponse.json({ ok: true, receiptId: attachment.receiptId })
   } catch (error) {
     if (error instanceof z.ZodError) return NextResponse.json({ error: "Invalid completion request" }, { status: 400 })
     console.error("upload completion failed", error)

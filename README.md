@@ -6,7 +6,7 @@ TraceSlip is a multi-workspace receipt platform for capturing a scan or PDF, rev
 
 ## What is implemented
 
-- Mobile rear-camera input, drag-and-drop, JPEG/PNG/WebP/PDF support, rotation, private source preview, 10 MB limit, MIME/magic-byte checks, SHA-256 fingerprints, and duplicate warnings.
+- Mobile rear-camera input, drag-and-drop, JPEG/PNG/WebP/PDF support, rotation, private source preview, 10 MB limit, MIME/magic-byte checks, SHA-256 fingerprints, and hard rejection of identical receipt sources.
 - OpenAI Responses API extraction using Structured Outputs and `store: false`, with `gpt-5.6-luna` as the default and an explicit `gpt-5.6-terra` enhanced retry.
 - Evidence and confidence per suggestion, safe-selection threshold at `0.80`, monetary mismatch blocking, selective apply, undo, discard, manual correction, save, finalize, and void APIs.
 - Better Auth verified email/password, Google OAuth, organization invitations, admin suspension/session controls, and 15-minute support impersonation.

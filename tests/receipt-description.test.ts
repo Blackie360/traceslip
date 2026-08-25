@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest"
 
 import { ReceiptWorkbench } from "@/components/receipts/receipt-workbench"
 import { sanitizeDescriptionExtraction } from "@/lib/receipt-description"
-import type { ReceiptExtraction, SourceSuggestion } from "@/lib/receipt-types"
+import { EMPTY_RECEIPT_VIEW_MODEL, type ReceiptExtraction, type SourceSuggestion } from "@/lib/receipt-types"
 
 function suggestion<T>(normalizedValue: T, rawSourceText = "user supplied", confidence = 0.95): SourceSuggestion<T> {
   return { normalizedValue, rawSourceText, confidence }
@@ -46,14 +46,47 @@ const extraction: ReceiptExtraction = {
 }
 
 describe("description receipt drafts", () => {
-  it("offers a plain-language AI drafting entry point", () => {
+  it("keeps the capture screen focused on scan and upload", () => {
     const html = renderToStaticMarkup(createElement(ReceiptWorkbench, {
       projects: [{ id: "10000000-0000-4000-8000-000000000003", name: "Operations" }],
     }))
 
-    expect(html).toContain("Describe the transaction")
-    expect(html).toContain("Create draft with AI")
-    expect(html).toContain("not a finalized receipt")
+    expect(html).toContain("Scan or upload your receipt")
+    expect(html).toContain("Take photo")
+    expect(html).toContain("Choose file")
+    expect(html).not.toContain("Describe the transaction")
+    expect(html).not.toContain("Handled automatically")
+    expect(html).not.toContain("File this receipt under")
+  })
+
+  it("shows a compact project picker only when there is a choice", () => {
+    const html = renderToStaticMarkup(createElement(ReceiptWorkbench, {
+      projects: [
+        { id: "10000000-0000-4000-8000-000000000003", name: "Operations" },
+        { id: "10000000-0000-4000-8000-000000000004", name: "Events" },
+      ],
+    }))
+
+    expect(html).toContain('aria-label="Project"')
+    expect(html).toContain("Operations")
+    expect(html).toContain("Events")
+  })
+
+  it("uses one save action without exposing finalization or draft status", () => {
+    const html = renderToStaticMarkup(createElement(ReceiptWorkbench, {
+      projects: [],
+      initialReceipt: {
+        ...EMPTY_RECEIPT_VIEW_MODEL,
+        id: "10000000-0000-4000-8000-000000000005",
+        archiveId: "TS-2026-000005",
+        hasOriginalSource: true,
+      },
+    }))
+
+    expect(html).toContain("Save receipt")
+    expect(html).not.toContain("Finalize receipt")
+    expect(html).not.toContain("Final receipt")
+    expect(html).not.toContain("Unverified draft")
   })
 
   it("keeps useful transaction details while removing proof-only identifiers", () => {
