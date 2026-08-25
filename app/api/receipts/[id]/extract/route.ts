@@ -6,6 +6,7 @@ import { aiExtractionAttempts, attachments, auditEvents, receipts } from "@/db/s
 import { assertMutableSession, canEditReceipt, getRequestSession } from "@/lib/authorization"
 import { db } from "@/lib/db"
 import { extractReceiptSource, RECEIPT_EXTRACTION_PIPELINE_VERSION } from "@/lib/receipt-ai"
+import { normalizeReceiptExtraction } from "@/lib/receipt-ai-normalization"
 import { getReceiptRecordForUser } from "@/lib/receipt-data"
 import { receiptExtractionSchema, type ReceiptExtraction } from "@/lib/receipt-types"
 
@@ -114,8 +115,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (existing?.status === "complete" && existing.result) {
       const parsed = receiptExtractionSchema.safeParse(existing.result)
       if (parsed.success) {
-        const possibleDuplicates = await findPossibleDuplicates(receipt.organizationId, receiptId, parsed.data)
-        return NextResponse.json({ extraction: parsed.data, cached: true, possibleDuplicates })
+        const extraction = normalizeReceiptExtraction(parsed.data)
+        const possibleDuplicates = await findPossibleDuplicates(receipt.organizationId, receiptId, extraction)
+        return NextResponse.json({ extraction, cached: true, possibleDuplicates })
       }
     }
     if (existing?.status === "processing") return NextResponse.json({ error: "Extraction is already processing" }, { status: 409 })

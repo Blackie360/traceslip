@@ -13,6 +13,7 @@ import {
 } from "@/lib/authorization"
 import { db } from "@/lib/db"
 import { reconcileTotals } from "@/lib/money"
+import { isReceiptTimestamp, normalizeReceiptTimestamp } from "@/lib/receipt-date"
 import { getReceiptRecordForUser } from "@/lib/receipt-data"
 import { DOCUMENT_KINDS, EXPENSE_CATEGORIES, RECEIPT_TEMPLATE_IDS } from "@/lib/receipt-types"
 
@@ -29,7 +30,7 @@ export const receiptDraftSchema = z.object({
   merchantTaxIdentifier: z.string().trim().max(120).nullable(),
   buyerName: z.string().trim().max(240).nullable(),
   buyerTaxIdentifier: z.string().trim().max(120).nullable(),
-  issuedAt: z.string().datetime().nullable(),
+  issuedAt: z.string().trim().max(40).refine(isReceiptTimestamp, "Enter a valid receipt date and time").nullable(),
   currency: z.string().length(3).transform((value) => value.toUpperCase()),
   subtotalMinor: z.number().int(),
   discountMinor: z.number().int().min(0),
@@ -77,6 +78,7 @@ export async function saveReceiptDraft(receiptId: string, rawInput: unknown, ses
   const { receipt, access } = await getReceiptRecordForUser(receiptId, session.user.id)
   if (receipt.status !== "draft" || !canEditReceipt(access, receipt.createdById, session.user.id)) throw new Error("NOT_FOUND")
   const totals = reconcileTotals(input)
+  const normalizedIssuedAt = normalizeReceiptTimestamp(input.issuedAt, receipt.timezone)
 
   await db.transaction(async (tx) => {
     const [locked] = await tx.select().from(receipts).where(eq(receipts.id, receipt.id)).for("update").limit(1)
@@ -110,7 +112,7 @@ export async function saveReceiptDraft(receiptId: string, rawInput: unknown, ses
         merchantTaxIdentifier: input.merchantTaxIdentifier,
         buyerName: input.buyerName,
         buyerTaxIdentifier: input.buyerTaxIdentifier,
-        issuedAt: input.issuedAt ? new Date(input.issuedAt) : null,
+        issuedAt: normalizedIssuedAt ? new Date(normalizedIssuedAt) : null,
         currency: input.currency,
         subtotalMinor: input.subtotalMinor,
         discountMinor: input.discountMinor,
@@ -157,7 +159,7 @@ export async function finalizeReceipt(receiptId: string, session: Session) {
     if (!source) throw new Error("SOURCE_REQUIRED")
     const totals = reconcileTotals({ ...receipt, lines: items })
     if (totals.warnings.length) throw new Error("TOTALS_MISMATCH")
-    if (!receipt.merchantName || !receipt.issuedAt || !items.length) throw new Error("REVIEW_REQUIRED")
+    if (!receipt.merchantName || !receipt.issuedAt) throw new Error("REVIEW_REQUIRED")
 
     await snapshotReceipt(tx, receipt.id, "receipt.finalized", session.user.id)
     const updated = await tx

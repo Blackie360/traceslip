@@ -4,7 +4,7 @@ import OpenAI from "openai"
 import { zodTextFormat } from "openai/helpers/zod"
 
 import { buildReceiptSourceContent } from "@/lib/receipt-ai-input"
-import { normalizeReceiptExtractionMoney } from "@/lib/receipt-ai-normalization"
+import { normalizeReceiptExtraction } from "@/lib/receipt-ai-normalization"
 import { receiptExtractionSchema, type ReceiptExtraction } from "@/lib/receipt-types"
 
 export const RECEIPT_EXTRACTION_PIPELINE_VERSION = "1.2"
@@ -17,7 +17,7 @@ Classify expenseCategory only from visible merchant, item, or service evidence. 
 All monetary values are integer minor units for the detected ISO 4217 currency. Convert visible major-unit amounts using the currency fraction digits: for example KES 49,230 must be 4923000 minor units, not 49230. Quantities are decimal strings.
 Only return line items or service descriptions that are visibly stated. If the source does not describe what was purchased, return an empty lines array so the user can add the service description during review.
 Choose the closest TraceSlip template. Kenya fiscal fields are facts only when visibly printed. qrPresent describes whether a QR is visibly present; it does not recreate the QR.
-Recalculate line totals, subtotal, discount, tax, fees, and grand total. Add concise calculation warnings for every mismatch.
+Compare only monetary values that are visibly stated. Missing subtotal, tax, fees, discount, or line items are valid and must not create a warning. Add a concise calculation warning only when stated figures contradict one another.
 This output is a suggestion. It will never be applied or saved automatically.`
 
 type ExtractSourceInput = {
@@ -53,7 +53,7 @@ export async function extractReceiptSource(input: ExtractSourceInput): Promise<{
   if (!response.output_parsed) throw new Error("MODEL_OUTPUT_INVALID")
   const parsed = receiptExtractionSchema.parse(response.output_parsed)
   return {
-    extraction: normalizeReceiptExtractionMoney(parsed),
+    extraction: normalizeReceiptExtraction(parsed),
     model,
     latencyMs: Math.round(performance.now() - startedAt),
     inputTokens: response.usage?.input_tokens ?? null,

@@ -15,7 +15,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     const known: Record<string, string> = {
       SOURCE_REQUIRED: "Attach and validate the original source first.",
       TOTALS_MISMATCH: "Fix the calculation warnings before finalizing.",
-      REVIEW_REQUIRED: "Merchant, date, and at least one line item are required.",
+      REVIEW_REQUIRED: "Merchant and date are required.",
       FINALIZATION_CONFLICT: "This draft changed in another session. Reload and review it.",
     }
     if (known[message]) return NextResponse.json({ error: known[message] }, { status: 409 })
