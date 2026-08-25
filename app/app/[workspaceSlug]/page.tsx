@@ -1,9 +1,9 @@
 import { and, count, desc, eq, sql } from "drizzle-orm"
-import { ArrowRight, CircleAlert, FolderKanban, ReceiptText, WalletCards } from "lucide-react"
+import { ArrowRight, FolderKanban, ReceiptText, WalletCards } from "lucide-react"
 import Link from "next/link"
 
 import { PageHeader } from "@/components/page-header"
-import { StatusBadge } from "@/components/status-badge"
+import { Badge } from "@/components/ui/badge"
 import { buttonVariants } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { projects, receipts } from "@/db/schema"
@@ -27,10 +27,9 @@ export default async function WorkspaceDashboard({ params }: { params: Promise<{
   const { workspaceSlug } = await params
   const access = await requireWorkspace(workspaceSlug)
   const orgId = access.organizationId
-  const [[projectCount], [receiptCount], [draftCount], recent, currencyTotals] = await Promise.all([
+  const [[projectCount], [receiptCount], recent, currencyTotals] = await Promise.all([
     db.select({ value: count() }).from(projects).where(eq(projects.organizationId, orgId)),
     db.select({ value: count() }).from(receipts).where(eq(receipts.organizationId, orgId)),
-    db.select({ value: count() }).from(receipts).where(and(eq(receipts.organizationId, orgId), eq(receipts.status, "draft"))),
     db.select({ id: receipts.id, archiveId: receipts.archiveId, merchantName: receipts.merchantName, status: receipts.status, totalMinor: receipts.totalMinor, currency: receipts.currency, createdAt: receipts.createdAt }).from(receipts).where(eq(receipts.organizationId, orgId)).orderBy(desc(receipts.createdAt)).limit(6),
     db.select({ currency: receipts.currency, total: sql<number>`coalesce(sum(${receipts.totalMinor}),0)::bigint` }).from(receipts).where(and(eq(receipts.organizationId, orgId), eq(receipts.status, "final"))).groupBy(receipts.currency),
   ])
@@ -41,13 +40,12 @@ export default async function WorkspaceDashboard({ params }: { params: Promise<{
 
   return (
     <>
-      <PageHeader eyebrow="Workspace overview" title="Overview" description="Track the review queue, finalized value, and recent receipt activity." />
+      <PageHeader eyebrow="Workspace overview" title="Overview" description="Track your receipt records, recorded value, and recent activity." />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard icon={ReceiptText} label="Total records" value={receiptCount.value} detail={`Across ${projectCount.value} project${projectCount.value === 1 ? "" : "s"}`} />
-        <MetricCard icon={CircleAlert} label="Awaiting review" value={draftCount.value} detail="Drafts still open for changes" tone="warning" />
+      <div className="grid gap-4 sm:grid-cols-3">
+        <MetricCard icon={ReceiptText} label="Total receipts" value={receiptCount.value} detail={`Across ${projectCount.value} project${projectCount.value === 1 ? "" : "s"}`} />
         <MetricCard icon={FolderKanban} label="Active projects" value={projectCount.value} detail="Workspace access boundaries" />
-        <MetricCard icon={WalletCards} label="Finalized value" value={finalValue} detail="Currencies remain separate" tone="success" />
+        <MetricCard icon={WalletCards} label="Recorded value" value={finalValue} detail="Currencies remain separate" tone="success" />
       </div>
 
       <section className="app-panel mt-6">
@@ -55,11 +53,10 @@ export default async function WorkspaceDashboard({ params }: { params: Promise<{
           <div><h2 className="font-semibold">Recent receipt activity</h2><p className="mt-0.5 text-sm text-muted-foreground">Latest records across the workspace</p></div>
           <Link href={`${base}/receipts`} className="inline-flex items-center gap-1.5 text-sm font-medium text-accent hover:underline">View all <ArrowRight className="size-3.5" aria-hidden="true" /></Link>
         </div>
-        <div className="hidden grid-cols-[1fr_.55fr_.65fr_auto] gap-4 app-table-head sm:grid"><span>Record</span><span>Status</span><span className="text-right">Amount</span><span className="w-16 text-right">Open</span></div>
+        <div className="hidden grid-cols-[1fr_.65fr_auto] gap-4 app-table-head sm:grid"><span>Record</span><span className="text-right">Amount</span><span className="w-16 text-right">Open</span></div>
         {recent.length ? recent.map((receipt) => (
-          <Link key={receipt.id} href={`${base}/receipts/${receipt.id}`} className="group grid gap-3 border-b px-5 py-4 transition-colors last:border-0 hover:bg-muted/45 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring sm:grid-cols-[1fr_.55fr_.65fr_auto] sm:items-center">
-            <div><p className="font-medium group-hover:text-accent">{receipt.merchantName || "Merchant pending review"}</p><p className="text-xs text-muted-foreground">{receipt.archiveId}</p></div>
-            <StatusBadge status={receipt.status} />
+          <Link key={receipt.id} href={`${base}/receipts/${receipt.id}`} className="group grid gap-3 border-b px-5 py-4 transition-colors last:border-0 hover:bg-muted/45 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring sm:grid-cols-[1fr_.65fr_auto] sm:items-center">
+            <div><p className="flex items-center gap-2 font-medium group-hover:text-accent"><span>{receipt.merchantName || "Merchant pending"}</span>{receipt.status === "void" ? <Badge variant="destructive">Void</Badge> : null}</p><p className="text-xs text-muted-foreground">{receipt.archiveId}</p></div>
             <p className="text-sm font-medium tabular-nums sm:text-right">{formatMoney(receipt.totalMinor, receipt.currency)}</p>
             <span className="flex items-center gap-1 text-sm font-medium text-accent sm:w-16 sm:justify-end">View <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-1" aria-hidden="true" /></span>
           </Link>

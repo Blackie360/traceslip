@@ -41,7 +41,7 @@ export default async function ReceiptRegisterPage({
       <PageHeader
         eyebrow="Controlled register"
         title="Receipts"
-        description="Select any record to review its source, receipt, or invoice. Finalized documents are immutable."
+        description="Select any receipt to view its source, details, or downloadable copy."
       />
       <ReceiptRegister
         rows={rows.map(({ issuedAt, ...row }) => ({
