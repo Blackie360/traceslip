@@ -1,8 +1,8 @@
 import {
-  hasCalculationMismatch,
-  safeSuggestionKeys,
+  sourceSuggestionKeys,
   type ReviewableSuggestionKey,
 } from "@/lib/extraction-review"
+import { normalizeReceiptTimestamp } from "@/lib/receipt-date"
 import type {
   ReceiptExtraction,
   ReceiptLineViewModel,
@@ -14,12 +14,10 @@ function valueOf<T>(suggestion: SourceSuggestion<T>): T | null {
   return suggestion.normalizedValue
 }
 
-function safeLines(extraction: ReceiptExtraction): ReceiptLineViewModel[] {
-  if (hasCalculationMismatch(extraction)) return []
-
+function sourceLines(extraction: ReceiptExtraction): ReceiptLineViewModel[] {
   return extraction.lines.flatMap((line, index) => {
     const fields = Object.values(line)
-    if (fields.some((field) => field.normalizedValue === null || field.confidence < 0.8)) return []
+    if (fields.some((field) => field.normalizedValue === null)) return []
 
     return [{
       id: `auto-line-${index}`,
@@ -36,7 +34,7 @@ function safeLines(extraction: ReceiptExtraction): ReceiptLineViewModel[] {
 export function applyReceiptExtraction(
   receipt: ReceiptViewModel,
   extraction: ReceiptExtraction,
-  keys: readonly ReviewableSuggestionKey[] = safeSuggestionKeys(extraction)
+  keys: readonly ReviewableSuggestionKey[] = sourceSuggestionKeys(extraction)
 ): ReceiptViewModel {
   let next: ReceiptViewModel = {
     ...receipt,
@@ -77,11 +75,16 @@ export function applyReceiptExtraction(
         next = { ...next, fiscal: { ...next.fiscal, qrPresent: Boolean(valueOf(extraction[key])) } }
         break
       case "sourceNumber":
-      case "issuedAt":
       case "currency":
       case "paymentMethod":
       case "paymentReference":
         next = { ...next, [key]: String(valueOf(extraction[key])) }
+        break
+      case "issuedAt":
+        next = {
+          ...next,
+          issuedAt: normalizeReceiptTimestamp(String(valueOf(extraction.issuedAt)), next.timezone),
+        }
         break
       case "subtotalMinor":
       case "discountMinor":
@@ -93,6 +96,6 @@ export function applyReceiptExtraction(
     }
   }
 
-  const lines = safeLines(extraction)
+  const lines = sourceLines(extraction)
   return lines.length ? { ...next, lines } : next
 }
