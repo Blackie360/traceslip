@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import Script from "next/script";
+import { InlineScript } from "@/components/inline-script";
 import { Providers } from "@/components/providers";
 import "./globals.css";
 
@@ -38,10 +38,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
+      <head>
+        <InlineScript html={themeInitializer} />
+      </head>
       <body className="min-h-full flex flex-col">
-        <Script id="theme-initializer" strategy="beforeInteractive">
-          {themeInitializer}
-        </Script>
         <Providers>{children}</Providers>
       </body>
     </html>
