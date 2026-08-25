@@ -20,7 +20,7 @@ function extraction(warnings: string[] = []) {
     merchantContacts: suggestion(null),
     merchantTaxIdentifier: suggestion(null),
     sourceNumber: suggestion("UHEL630Z3C"),
-    issuedAt: suggestion("2026-08-14T18:28:00.000Z"),
+    issuedAt: suggestion("2026-08-14 18:28"),
     currency: suggestion("KES"),
     paymentMethod: suggestion("Pay Bill"),
     paymentReference: suggestion("UHEL630Z3C"),
@@ -53,18 +53,26 @@ describe("automatic receipt fill", () => {
     expect(receipt.merchant.address).toBe("Nairobi")
     expect(receipt.paymentMethod).toBe("Pay Bill")
     expect(receipt.expenseCategory).toBe("telecommunications")
+    expect(receipt.issuedAt).toBe("2026-08-14T15:28:00.000Z")
     expect(receipt.totalMinor).toBe(4_923_000)
     expect(receipt.lines[0]?.description).toBe("Connectivity service")
     expect(receipt.templateId).toBe("mobile-money-record")
   })
 
-  it("does not apply monetary fields or lines when calculations conflict", () => {
+  it("fills source-stated totals and lines while calculation conflicts remain reviewable", () => {
     const receipt = applyReceiptExtraction(
       EMPTY_RECEIPT_VIEW_MODEL,
       extraction(["Subtotal and total mismatch"])
     )
     expect(receipt.merchant.name).toBe("Tingg")
-    expect(receipt.totalMinor).toBe(0)
-    expect(receipt.lines).toHaveLength(0)
+    expect(receipt.totalMinor).toBe(4_923_000)
+    expect(receipt.lines).toHaveLength(1)
+  })
+
+  it("puts low-confidence source-backed values into the editable draft", () => {
+    const result = extraction()
+    result.sourceNumber.confidence = 0.55
+    const receipt = applyReceiptExtraction(EMPTY_RECEIPT_VIEW_MODEL, result)
+    expect(receipt.sourceNumber).toBe("UHEL630Z3C")
   })
 })
