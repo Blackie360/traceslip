@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input"
 
 const subscribeToHydration = () => () => undefined
 
-export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" | "forgot" | "reset" }) {
+export function AuthForm({ mode, callbackURL = "/app" }: { mode: "sign-in" | "sign-up" | "forgot" | "reset"; callbackURL?: string }) {
   const router = useRouter()
   const hydrated = useSyncExternalStore(subscribeToHydration, () => true, () => false)
   const [pending, setPending] = useState(false)
@@ -27,13 +27,13 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" | "forgot" | "r
     const name = String(form.get("name") ?? "")
     try {
       if (mode === "sign-in") {
-        const result = await authClient.signIn.email({ email, password, callbackURL: "/app" })
+        const result = await authClient.signIn.email({ email, password, callbackURL })
         if (result.error) throw new Error(result.error.message ?? "Unable to sign in")
-        router.push("/app"); router.refresh()
+        router.push(callbackURL); router.refresh()
       } else if (mode === "sign-up") {
-        const result = await authClient.signUp.email({ name, email, password, callbackURL: "/app" })
+        const result = await authClient.signUp.email({ name, email, password, callbackURL })
         if (result.error) throw new Error(result.error.message ?? "Unable to create your account")
-        router.replace("/verify-email")
+        router.replace(`/verify-email?callbackURL=${encodeURIComponent(callbackURL)}`)
       } else if (mode === "forgot") {
         const result = await authClient.requestPasswordReset({ email, redirectTo: "/reset-password" })
         if (result.error) throw new Error(result.error.message ?? "Unable to send reset email")
@@ -56,6 +56,6 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" | "forgot" | "r
     {!isForgot && <Field><div className="flex items-center justify-between"><FieldLabel htmlFor="password">Password</FieldLabel>{mode === "sign-in" && <Link href="/forgot-password" className="text-xs text-muted-foreground underline underline-offset-4">Forgot password?</Link>}</div><Input id="password" name="password" type="password" minLength={10} autoComplete={isSignUp ? "new-password" : "current-password"} required />{isSignUp && <FieldDescription>At least 10 characters. Verify your email before signing in.</FieldDescription>}</Field>}
     {error && <FieldError>{error}</FieldError>}
     <Button type="submit" size="lg" disabled={pending || !hydrated}>{pending ? <Loader2 className="animate-spin" data-icon="inline-start" /> : null}{isSignUp ? "Create account" : isForgot ? "Send reset link" : isReset ? "Set new password" : "Sign in"}{!pending && <ArrowRight data-icon="inline-end" />}</Button>
-    {(mode === "sign-in" || mode === "sign-up") && <Button type="button" variant="outline" disabled={!hydrated} onClick={() => authClient.signIn.social({ provider: "google", callbackURL: "/app" })}>Continue with Google</Button>}
+    {(mode === "sign-in" || mode === "sign-up") && <Button type="button" variant="outline" disabled={!hydrated} onClick={() => authClient.signIn.social({ provider: "google", callbackURL })}>Continue with Google</Button>}
   </FieldGroup></form>
 }
