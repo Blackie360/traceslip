@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { normalizeReceiptExtractionMoney } from "@/lib/receipt-ai-normalization"
+import { normalizeReceiptExtraction, normalizeReceiptExtractionMoney } from "@/lib/receipt-ai-normalization"
 import { receiptExtractionSchema } from "@/lib/receipt-types"
 
 const suggestion = (normalizedValue: unknown, rawSourceText: string | null) => ({
@@ -50,5 +50,11 @@ describe("receipt extraction money normalization", () => {
 
   it("handles source amounts with decimal major units", () => {
     expect(normalizeReceiptExtractionMoney(extraction(49230, "Total Amount Paid: KES 492.30")).totalMinor.normalizedValue).toBe(49230)
+  })
+
+  it("does not warn when the source states only a grand total", () => {
+    const result = extraction(4923000, "Total Amount Paid: KES 49,230")
+    result.calculationWarnings = ["No subtotal, tax, fees, or discount is provided."]
+    expect(normalizeReceiptExtraction(result).calculationWarnings).toEqual([])
   })
 })

@@ -65,7 +65,12 @@ export function reconcileTotals(input: {
   const calculatedSubtotal = input.lines.reduce((sum, line) => sum + line.totalMinor, 0)
   const calculatedTotal = input.subtotalMinor - input.discountMinor + input.taxMinor + input.feesMinor
   const warnings: string[] = []
-  if (calculatedSubtotal !== input.subtotalMinor) warnings.push("Line items do not match the stated subtotal.")
-  if (calculatedTotal !== input.totalMinor) warnings.push("Subtotal, tax, fees, and discount do not match the stated total.")
+  const hasStatedSubtotal = input.subtotalMinor !== 0
+  if (hasStatedSubtotal && input.lines.length && calculatedSubtotal !== input.subtotalMinor) {
+    warnings.push("Line items do not match the stated subtotal.")
+  }
+  if (hasStatedSubtotal && calculatedTotal !== input.totalMinor) {
+    warnings.push("The stated subtotal and adjustments do not match the stated total.")
+  }
   return { calculatedSubtotal, calculatedTotal, warnings }
 }

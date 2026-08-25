@@ -4,6 +4,7 @@ import { ReceiptWorkbench } from "@/components/receipts/receipt-workbench"
 import { aiExtractionAttempts, attachments } from "@/db/schema"
 import { requireWorkspace } from "@/lib/authorization"
 import { db } from "@/lib/db"
+import { normalizeReceiptExtraction } from "@/lib/receipt-ai-normalization"
 import { getReceiptViewModel } from "@/lib/receipt-data"
 import { receiptExtractionSchema } from "@/lib/receipt-types"
 
@@ -47,7 +48,7 @@ export default async function ReceiptDetailPage({
       initialReceipt={receipt}
       initialAttachmentId={source?.id}
       initialAttachmentMime={source?.mimeType}
-      initialExtraction={parsedExtraction.success ? parsedExtraction.data : null}
+      initialExtraction={parsedExtraction.success ? normalizeReceiptExtraction(parsedExtraction.data) : null}
     />
   )
 }
