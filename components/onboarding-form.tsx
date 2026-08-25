@@ -1,0 +1,12 @@
+"use client"
+import { useState } from "react"
+import { useRouter } from "next/navigation"
+import { Loader2 } from "lucide-react"
+import { toast } from "sonner"
+import { authClient } from "@/lib/auth-client"
+import { Button } from "@/components/ui/button"
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
+import { Input } from "@/components/ui/input"
+
+const slugify=(value:string)=>value.toLowerCase().trim().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,48)
+export function OnboardingForm(){const router=useRouter();const[pending,setPending]=useState(false);const[error,setError]=useState<string|null>(null);async function submit(event:React.FormEvent<HTMLFormElement>){event.preventDefault();setPending(true);setError(null);const data=new FormData(event.currentTarget);const workspaceName=String(data.get("workspaceName"));const projectName=String(data.get("projectName"));try{const created=await authClient.organization.create({name:workspaceName,slug:slugify(workspaceName)});if(created.error||!created.data)throw new Error(created.error?.message??"Unable to create workspace");await authClient.organization.setActive({organizationId:created.data.id});const response=await fetch("/api/projects",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({organizationId:created.data.id,name:projectName})});if(!response.ok)throw new Error((await response.json()).error);toast.success("Workspace ready");router.push(`/app/${created.data.slug}`);router.refresh()}catch(cause){setError(cause instanceof Error?cause.message:"Unable to create workspace")}finally{setPending(false)}}return <form onSubmit={submit}><FieldGroup><Field><FieldLabel htmlFor="workspaceName">Workspace name</FieldLabel><Input id="workspaceName" name="workspaceName" placeholder="Acme Finance" required/><FieldDescription>Your secure organization boundary. You will be its owner.</FieldDescription></Field><Field><FieldLabel htmlFor="projectName">First project</FieldLabel><Input id="projectName" name="projectName" placeholder="August expenses" required/><FieldDescription>Projects group receipts and control member access.</FieldDescription></Field>{error&&<FieldError>{error}</FieldError>}<Button type="submit" size="lg" disabled={pending}>{pending&&<Loader2 className="animate-spin" data-icon="inline-start"/>}Create workspace</Button></FieldGroup></form>}

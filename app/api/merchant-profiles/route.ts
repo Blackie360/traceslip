@@ -1,0 +1,9 @@
+import { and, eq } from "drizzle-orm"
+import { NextResponse } from "next/server"
+import { z } from "zod"
+import { auditEvents, members, merchantProfiles } from "@/db/schema"
+import { assertMutableSession, getRequestSession } from "@/lib/authorization"
+import { db } from "@/lib/db"
+import { RECEIPT_TEMPLATE_IDS } from "@/lib/receipt-types"
+const schema=z.object({organizationId:z.string(),displayName:z.string().trim().min(2).max(240),address:z.string().max(500).nullable().optional(),contacts:z.string().max(240).nullable().optional(),taxIdentifier:z.string().max(120).nullable().optional(),logoPath:z.string().max(500).nullable().optional(),preferredTemplateId:z.enum(RECEIPT_TEMPLATE_IDS),brandColor:z.string().regex(/^#[0-9a-fA-F]{6}$/).nullable().optional(),footer:z.string().max(500).nullable().optional()})
+export async function POST(request:Request){try{const session=await getRequestSession();if(!session)return NextResponse.json({error:"Resource not found"},{status:404});assertMutableSession(session);const input=schema.parse(await request.json());const[access]=await db.select({role:members.role}).from(members).where(and(eq(members.organizationId,input.organizationId),eq(members.userId,session.user.id))).limit(1);if(!access||!["owner","admin"].includes(access.role))return NextResponse.json({error:"Resource not found"},{status:404});const[profile]=await db.insert(merchantProfiles).values({...input,createdById:session.user.id}).returning();await db.insert(auditEvents).values({organizationId:input.organizationId,actorUserId:session.user.id,effectiveUserId:session.user.id,action:"merchant_profile.created",entityType:"merchant_profile",entityId:profile.id,metadata:{displayName:profile.displayName}});return NextResponse.json(profile)}catch(error){if(error instanceof z.ZodError)return NextResponse.json({error:"Review the merchant profile fields"},{status:400});return NextResponse.json({error:"Resource not found"},{status:404})}}

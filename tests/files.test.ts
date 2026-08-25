@@ -1,0 +1,3 @@
+import { describe, expect, it } from "vitest"
+import { detectAllowedMime, sanitizeFilename, sha256Hex } from "@/lib/files"
+describe("source files",()=>{it("sanitizes export names",()=>{expect(sanitizeFilename("../../Kijani Café / receipt #1.pdf")).toBe("Kijani-Cafe-receipt-1.pdf")});it("checks magic bytes rather than extensions",()=>{expect(detectAllowedMime(new Uint8Array([0x25,0x50,0x44,0x46,0x2d,0x31]))).toBe("application/pdf");expect(detectAllowedMime(new TextEncoder().encode("<svg><script>"))).toBeNull()});it("creates stable source fingerprints",async()=>{const bytes=new TextEncoder().encode("receipt source");expect(await sha256Hex(bytes.buffer)).toBe(await sha256Hex(bytes.buffer))})})

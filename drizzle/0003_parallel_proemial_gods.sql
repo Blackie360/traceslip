@@ -1,0 +1,1 @@
+ALTER TABLE "receipts" ADD COLUMN "expense_category" text;

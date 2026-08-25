@@ -1,0 +1,9 @@
+import { and, eq } from "drizzle-orm"
+import { NextResponse } from "next/server"
+import { z } from "zod"
+import { auditEvents, members, organizations, users } from "@/db/schema"
+import { db } from "@/lib/db"
+import { requirePlatformAdmin } from "@/lib/platform-authorization"
+import { WORKSPACE_ROLES } from "@/lib/receipt-types"
+const schema=z.object({organizationId:z.string(),userId:z.string(),role:z.enum(WORKSPACE_ROLES),reason:z.string().trim().min(10).max(500)})
+export async function POST(request:Request){try{const session=await requirePlatformAdmin();const input=schema.parse(await request.json());const[[workspace],[user]]=await Promise.all([db.select({id:organizations.id}).from(organizations).where(eq(organizations.id,input.organizationId)).limit(1),db.select({id:users.id}).from(users).where(eq(users.id,input.userId)).limit(1)]);if(!workspace||!user)return NextResponse.json({error:"Resource not found"},{status:404});const[existing]=await db.select({id:members.id,role:members.role}).from(members).where(and(eq(members.organizationId,input.organizationId),eq(members.userId,input.userId))).limit(1);await db.transaction(async tx=>{if(existing)await tx.update(members).set({role:input.role}).where(eq(members.id,existing.id));else await tx.insert(members).values({id:crypto.randomUUID(),organizationId:input.organizationId,userId:input.userId,role:input.role});await tx.insert(auditEvents).values({organizationId:input.organizationId,actorUserId:session.user.id,effectiveUserId:input.userId,action:"platform.membership_repaired",entityType:"member",entityId:existing?.id??null,reason:input.reason,metadata:{previousRole:existing?.role??null,newRole:input.role}})});return NextResponse.json({ok:true})}catch(error){if(error instanceof z.ZodError)return NextResponse.json({error:"A valid role and repair reason are required"},{status:400});return NextResponse.json({error:"Resource not found"},{status:404})}}
