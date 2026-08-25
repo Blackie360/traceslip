@@ -3,6 +3,7 @@ import { ArrowRight, Check, Mail } from "lucide-react"
 
 import { AuthShell } from "@/components/auth/auth-shell"
 import { buttonVariants } from "@/components/ui/button"
+import { safeAuthCallback } from "@/lib/auth-callback"
 import { cn } from "@/lib/utils"
 
 const steps = [
@@ -11,7 +12,9 @@ const steps = [
   "You’ll return to TraceSlip automatically to continue setup.",
 ]
 
-export default function VerifyEmailPage() {
+export default async function VerifyEmailPage({ searchParams }: { searchParams: Promise<{ callbackURL?: string | string[] }> }) {
+  const callbackURL = safeAuthCallback((await searchParams).callbackURL)
+  const signInHref = `/sign-in?callbackURL=${encodeURIComponent(callbackURL)}`
   return (
     <AuthShell
       eyebrow="One last check"
@@ -20,7 +23,7 @@ export default function VerifyEmailPage() {
       footer={
         <>
           Used the wrong address?{" "}
-          <Link href="/sign-up" className="font-medium text-foreground underline underline-offset-4">
+          <Link href={`/sign-up?callbackURL=${encodeURIComponent(callbackURL)}`} className="font-medium text-foreground underline underline-offset-4">
             Create the account again
           </Link>
         </>
@@ -51,7 +54,7 @@ export default function VerifyEmailPage() {
         </ol>
       </div>
 
-      <Link href="/sign-in" className={cn(buttonVariants({ size: "lg" }), "mt-5 w-full")}>
+      <Link href={signInHref} className={cn(buttonVariants({ size: "lg" }), "mt-5 w-full")}>
         Go to sign in
         <ArrowRight data-icon="inline-end" aria-hidden="true" />
       </Link>
