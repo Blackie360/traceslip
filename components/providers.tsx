@@ -1,12 +1,12 @@
 "use client"
 
-import { useEffect } from "react"
+import { useLayoutEffect } from "react"
 
 import { Toaster } from "@/components/ui/sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
 
 function SystemThemeSync() {
-  useEffect(() => {
+  useLayoutEffect(() => {
     const media = window.matchMedia("(prefers-color-scheme: dark)")
     const applyTheme = () => {
       const storedTheme = localStorage.getItem("theme")
