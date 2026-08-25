@@ -55,12 +55,20 @@ describe("receipt view models", () => {
     }
   })
 
-  it("labels description-only receipts as unverified drafts", () => {
+  it("labels receipts without an attachment as source not verified", () => {
     const html = renderToStaticMarkup(createElement(ReceiptPreview, {
       receipt: EMPTY_RECEIPT_VIEW_MODEL,
     }))
-    expect(html).toContain("Unverified draft")
+    expect(html).toContain("Source not verified")
     expect(html).toContain("Attach and validate the original source")
     expect(html).not.toContain("Verified digital copy")
+    expect(html).not.toContain("data-receipt-watermark")
+  })
+
+  it("reserves the document watermark for void receipts", () => {
+    const html = renderToStaticMarkup(createElement(ReceiptPreview, {
+      receipt: { ...EMPTY_RECEIPT_VIEW_MODEL, status: "void" },
+    }))
+    expect(html).toContain('data-receipt-watermark="void"')
   })
 })

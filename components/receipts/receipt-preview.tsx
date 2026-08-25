@@ -28,14 +28,15 @@ function merchantInitials(name: string) {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "M"
 }
 
-function StatusWatermark({ receipt }: PreviewProps) {
-  if (receipt.status === "final") return null
+function VoidWatermark({ receipt }: PreviewProps) {
+  if (receipt.status !== "void") return null
   return (
-    <div className={cn(
-      "pointer-events-none absolute inset-0 z-10 grid place-items-center -rotate-12 text-5xl font-black uppercase tracking-[.18em] opacity-[.055]",
-      receipt.status === "void" && "text-red-700 opacity-[.16]"
-    )}>
-      {receipt.status}
+    <div
+      aria-hidden="true"
+      data-receipt-watermark="void"
+      className="pointer-events-none absolute inset-0 z-10 grid place-items-center -rotate-12 text-5xl font-black uppercase tracking-[.18em] text-red-700 opacity-[.16]"
+    >
+      Void
     </div>
   )
 }
@@ -49,8 +50,8 @@ function ArchiveDisclosure({ receipt, className }: PreviewProps & { className?: 
           {verified ? <Check className="size-3.5" strokeWidth={3} /> : <AlertTriangle className="size-3.5" strokeWidth={2.5} />}
         </span>
         <div>
-          <p className="font-mono text-[9px] font-bold uppercase tracking-[.14em] text-foreground/75">{verified ? "Verified digital copy" : "Unverified draft"} · {receipt.archiveId}</p>
-          <p className="mt-1 text-[9px] leading-4 text-muted-foreground">{verified ? "Generated from the attached source · not a replacement vendor or tax invoice" : "Attach and validate the original source before finalizing or exporting"}</p>
+          <p className="font-mono text-[9px] font-bold uppercase tracking-[.14em] text-foreground/75">{verified ? "Verified digital copy" : "Source not verified"} · {receipt.archiveId}</p>
+          <p className="mt-1 text-[9px] leading-4 text-muted-foreground">{verified ? "Generated from the attached source · not a replacement vendor or tax invoice" : "Attach and validate the original source before saving or exporting"}</p>
           {receipt.status === "void" && <p className="mt-1 text-[9px] font-bold uppercase text-red-800">Void · {receipt.voidReason}</p>}
         </div>
       </div>
@@ -294,7 +295,7 @@ export function ReceiptPreview({ receipt, className }: { receipt: ReceiptViewMod
   const width = paperClass(receipt.templateId)
   return (
     <article aria-label={`${TEMPLATE_LABELS[receipt.templateId]} preview`} className={cn("print-receipt relative mx-auto w-full", className)}>
-      <div className={cn("paper-shadow relative mx-auto w-full overflow-hidden bg-[#fffef9] text-[#171612]", width)}><StatusWatermark receipt={receipt} /><TemplateBody receipt={receipt} /></div>
+      <div className={cn("paper-shadow relative mx-auto w-full overflow-hidden bg-[#fffef9] text-[#171612]", width)}><VoidWatermark receipt={receipt} /><TemplateBody receipt={receipt} /></div>
       <ArchiveDisclosure receipt={receipt} className={width.replace("receipt-edge", "")} />
     </article>
   )

@@ -47,8 +47,8 @@ function PdfArchiveBand({ receipt }: { receipt: ReceiptViewModel }) {
   const verified = receipt.hasOriginalSource
   return (
     <View style={[styles.archiveBand, !verified ? { borderColor: "#f59e0b", backgroundColor: "#fffbeb" } : {}]} wrap={false}>
-      <Text style={[styles.archive, !verified ? { color: "#92400e", fontWeight: 700 } : {}]}>{verified ? "VERIFIED DIGITAL COPY" : "UNVERIFIED DRAFT"} · {receipt.archiveId}</Text>
-      <Text style={styles.notice}>{verified ? "Generated from attached source · not a replacement vendor or tax invoice" : "Attach and validate the original source before finalizing or exporting"}</Text>
+      <Text style={[styles.archive, !verified ? { color: "#92400e", fontWeight: 700 } : {}]}>{verified ? "VERIFIED DIGITAL COPY" : "SOURCE NOT VERIFIED"} · {receipt.archiveId}</Text>
+      <Text style={styles.notice}>{verified ? "Generated from attached source · not a replacement vendor or tax invoice" : "Attach and validate the original source before saving or exporting"}</Text>
       {receipt.status === "void" && <Text style={{ color: colors.red, fontWeight: 700, marginTop: 3 }}>VOID - {receipt.voidReason}</Text>}
     </View>
   )
@@ -262,7 +262,7 @@ export function ReceiptPdfDocument({ receipt, format }: { receipt: ReceiptViewMo
   return (
     <Document title={`${receipt.archiveId} · ${receipt.merchant.name}`} author="Receipt archive">
       <Page size={useA4 ? "A4" : [width, height]} style={[styles.page, useA4 ? styles.a4 : {}]}>
-        {receipt.status !== "final" && <Text style={styles.void}>{receipt.status.toUpperCase()}</Text>}
+        {receipt.status === "void" && <Text style={styles.void}>VOID</Text>}
         {templateContents(receipt)}
         <PdfArchiveBand receipt={receipt} />
       </Page>
